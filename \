@@ -1,0 +1,80 @@
+#include <assert.h>
+#include <cuda.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
+
+#define RNC 10
+#define BLOCKS 10 
+#define THRPBLOCK 10
+
+__global__ void madkernel(int *A[][RNC], int *B[][RNC], int *C[][RNC]){
+   int i = threadIdx.x;
+   int j = threadIdx.y;
+   A[i][j] = B[i][j] + C[i][j];
+}
+
+int main(void) {
+  int nDevices, i, j, B[RNC][RNC], C[RNC][RNC], A[RNC][RNC], *A_d, *B_d, *C_d;
+
+//////////////////////////////////////Print device properties
+  cudaGetDeviceCount(&nDevices);
+  for (int i = 0; i < nDevices; i++) {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, i);
+    printf("Device Number: %d\n", i);
+    printf("  Device name: %s\n", prop.name);
+    printf("  MaxThreadPerBlock: %d\n",
+           prop.maxThreadsPerBlock);
+    printf("  MultiProcessorCount: %d\n",
+           prop.multiProcessorCount);
+    printf("  ClockRate: %d\n",
+           prop.clockRate);
+    printf("  MaxThreadsDim0: %d\n",
+           prop.maxThreadsDim[0]);
+    printf("  MaxGridSize: %d\n",
+           prop.maxGridSize[1]);
+    printf("  Memory Clock Rate (KHz): %d\n",
+           prop.memoryClockRate);
+    printf("  Memory Bus Width (bits): %d\n",
+           prop.memoryBusWidth);
+    printf("  Peak Memory Bandwidth (GB/s): %f\n\n",
+           2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6);
+  }
+/////////////////////////////////////Populate First Matrix
+   srand(1);
+   for (i = 0; i < RNC; i++){
+      for (j = 0; j < RNC; j++) {
+         B[i][j] = rand() % 100 + 1; 
+         printf("%d  ",B[i][j]);
+      }
+      printf("\n");
+   }
+   printf("\n");
+/////////////////////////////////////Populate Second Matrix
+   for (i = 0; i < RNC; i++){
+      for (j = 0; j < RNC; j++) {
+         C[i][j] = rand() % 100 + 1;
+         printf("%d  ",C[i][j]);
+      }
+      printf("\n");
+   }
+/////////////////////////////////////Allocate memory in the device
+   
+   cudaMalloc((void**) &A_d, (RNC*RNC)*sizeof(int));
+   cudaMalloc((void**) &B_d, (RNC*RNC)*sizeof(int));
+   cudaMalloc((void**) &C_d, (RNC*RNC)*sizeof(int));
+
+////////////////////////////////////Mem copy from host to device
+   cudaMemcpy(A_d, A, (RNC*RNC)*sizeof(int), cudaMemcpyHostToDevice);
+   cudaMemcpy(B_d, B, (RNC*RNC)*sizeof(int), cudaMemcpyHostToDevice);
+   cudaMemcpy(C_d, C, (RNC*RNC)*sizeof(int), cudaMemcpyHostToDevice);
+
+   madkernel<<<BLOCKS,THRPBLOCK>>>(A_d, B_d, C_d);
+
+   cudaMemcpy(A, A_d, (RNC*RNC)*sizeof(int), cudaMemcpyDeviceToHost);
+
+   cudaFree(A_d); 
+   cudaFree(B_d); 
+   cudaFree(C_d);
+}
