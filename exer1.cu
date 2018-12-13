@@ -3,13 +3,32 @@
 #include <stddef.h>
 #include <time.h>
 
-#define N 10
+#define N 1000
 
+////////////////////////////Each thread 1 row 1 column
 __global__ void kernel_1t1e(float A[N][N], float B[N][N], float C[N][N], int size) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
     if (i < size && j < size){
         A[i][j] = B[i][j] + C[i][j];
+    }
+}
+///////////////////////////Each thread 1 row
+__global__ void kernel_1t1r(float A[N][N], float B[N][N], float C[N][N], int size) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < size){
+	for (int j = 0; j < size; j++){
+        A[i][j] = B[i][j] + C[i][j];
+	}
+    }
+}
+///////////////////////////Each thread 1 column
+__global__ void kernel_1t1c(float A[N][N], float B[N][N], float C[N][N], int size) {
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    if (j < size){
+        for (int i = 0; i < size; i++){
+        A[i][j] = B[i][j] + C[i][j];
+        }
     }
 }
 
@@ -18,8 +37,7 @@ int main(void){
   int i, j;
   float A[N][N], B[N][N], C[N][N], (*A_d)[N], (*B_d)[N], (*C_d)[N];
 
-//////////////////////////////////////Print device properties
-
+//Print device properties
   cudaGetDeviceCount(&nDevices);
   for (int i = 0; i < nDevices; i++) {
     cudaDeviceProp prop;
@@ -36,36 +54,38 @@ int main(void){
            prop.maxThreadsDim[2]);
     printf("  MaxGridSize: %d\n",
            prop.maxGridSize[1]);
+    printf("  Warp Size: %d\n",
+           prop.warpSize);
   }
-/////////////////////////////////////Populate First Matrix
+//Populate First Matrix
    srand(1);
    for (i = 0; i < N; i++){
       for (j = 0; j < N; j++) {
          B[i][j] = ((float)rand()/(float)(RAND_MAX)) * 100;
-         printf("%f  ", B[i][j]);
+//         printf("%f  ", B[i][j]);
       }
       printf("\n");
    }
    printf("\n");
-/////////////////////////////////////Populate Second Matrix
+//Populate Second Matrix
    for (i = 0; i < N; i++){
       for (j = 0; j < N; j++) {
          C[i][j] = ((float)rand()/(float)(RAND_MAX)) * 100;
-	 printf("%f  ", C[i][j]);
+//	 printf("%f  ", C[i][j]);
       }
-      printf("\n");
+     printf("\n");
    }
    printf("\n");
    printf("===============================");
    printf("\n");
 
-/////////////////////////////////////Allocate memory in the device
+//Allocate memory in the device
    
    cudaMalloc((void**) &A_d, (N*N)*sizeof(float));
    cudaMalloc((void**) &B_d, (N*N)*sizeof(float));
    cudaMalloc((void**) &C_d, (N*N)*sizeof(float));
 
-////////////////////////////////////Mem copy from host to device
+//Mem copy from host to device
    cudaMemcpy(A_d, A, (N*N)*sizeof(float), cudaMemcpyHostToDevice);
    cudaMemcpy(B_d, B, (N*N)*sizeof(float), cudaMemcpyHostToDevice);
    cudaMemcpy(C_d, C, (N*N)*sizeof(float), cudaMemcpyHostToDevice);
@@ -76,8 +96,9 @@ int main(void){
    cudaEvent_t start, stop;
    float elapsed = 0;
 
-////////////////////////////////////ThreadAll
+//ThreadAll
 
+//Run
    cudaEventCreate(&start);
    cudaEventCreate(&stop);
    cudaEventRecord(start, 0);
@@ -103,9 +124,9 @@ int main(void){
    cudaEventDestroy(start);
    cudaEventDestroy(stop);
    printf("GPU Run TIme threadsrow %.2f ms \n", elapsed);
-*/
+
 ////////////////////////////////////Thread Column
-/*
+
    cudaEventCreate(&start);
    cudaEventCreate(&stop);
    cudaEventRecord(start, 0);
@@ -118,7 +139,7 @@ int main(void){
    cudaEventDestroy(stop);
    printf("GPU Run TIme threadscol %.2f ms \n", elapsed);
 */
-//////////////////////////////////////Mem Copy
+//Mem Copy
    cudaMemcpy(A, A_d, (N*N)*sizeof(float), cudaMemcpyDeviceToHost);
 
 /////////////////////////////////////Print matrix A
